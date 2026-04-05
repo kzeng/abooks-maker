@@ -262,7 +262,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status_label)
         
         self.log_toggle_btn = QPushButton(translator.get('show_log'))
-        self.log_toggle_btn.setMinimumHeight(30)
+        self.log_toggle_btn.setObjectName("log_toggle_btn")
+        self.log_toggle_btn.setMinimumHeight(25)
         self.log_toggle_btn.clicked.connect(self.toggle_log_panel)
         self.log_toggle_btn.setVisible(False)
         layout.addWidget(self.log_toggle_btn)

@@ -294,3 +294,18 @@ QMessageBox QLabel {
 QMessageBox QPushButton {
     min-width: 80px;
 }
+
+/* Log toggle button - link style */
+QPushButton#log_toggle_btn {
+    background-color: transparent;
+    border: none;
+    color: #888888;
+    text-decoration: underline;
+    padding: 5px;
+    font-size: 12px;
+    min-height: 20px;
+}
+
+QPushButton#log_toggle_btn:hover {
+    color: #3498db;
+}

@@ -174,16 +174,13 @@ class ConvertThread(QThread):
 
     def run(self):
         total_files = len(self.files)
-        total_chapters = 0
         chapter_list = []
-
+        
+        all_chunks = []
         for file_path in self.files:
             if self._stop:
                 break
             filename = os.path.splitext(os.path.basename(file_path))[0]
-            book_output_dir = os.path.join(self.output_dir, filename)
-            os.makedirs(book_output_dir, exist_ok=True)
-
             self.status.emit(t('status_reading', 'Reading: {filename}').format(filename=filename))
             self.log.emit(f"Reading: {file_path}")
 
@@ -192,7 +189,23 @@ class ConvertThread(QThread):
                 self.log.emit(f"No content extracted from {filename}")
                 continue
 
-            total_chapters += len(chapters)
+            for chapter_text in chapters:
+                chunks = [chapter_text[j:j+2000] for j in range(0, len(chapter_text), 2000)]
+                all_chunks.extend(chunks)
+        
+        total_chunks = len(all_chunks)
+        completed_chunks = 0
+        
+        for file_path in self.files:
+            if self._stop:
+                break
+            filename = os.path.splitext(os.path.basename(file_path))[0]
+            book_output_dir = os.path.join(self.output_dir, filename)
+            os.makedirs(book_output_dir, exist_ok=True)
+
+            chapters = extract_text_from_file(file_path)
+            if not chapters:
+                continue
 
             for i, chapter_text in enumerate(chapters):
                 if self._stop:
@@ -211,6 +224,9 @@ class ConvertThread(QThread):
 
                     if os.path.exists(output_file):
                         self.log.emit(f"Skip existing: {output_file}")
+                        completed_chunks += 1
+                        progress = int((completed_chunks / max(1, total_chunks)) * 100)
+                        self.progress.emit(progress)
                         continue
 
                     try:
@@ -219,8 +235,9 @@ class ConvertThread(QThread):
                     except Exception as e:
                         self.log.emit(f"Error: {e}, will continue...")
 
-                    current = i * len(chunks) + chunk_num
-                    self.progress.emit(int((current / max(1, total_chapters * 2)) * 100))
+                    completed_chunks += 1
+                    progress = int((completed_chunks / max(1, total_chunks)) * 100)
+                    self.progress.emit(progress)
 
                 chapter_list.append(book_output_dir)
 
