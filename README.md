@@ -2,6 +2,8 @@
 
 GUI tool to convert ebooks to audiobooks using Microsoft Edge TTS.
 
+![app.png](app.png)
+
 ## Target
 
 A simple, powerful audio book tool:
