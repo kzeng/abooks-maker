@@ -10,7 +10,7 @@ try:
 except ImportError:
     from src.app.main_window import MainWindow
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 def main():
     from PySide6.QtWidgets import QApplication
