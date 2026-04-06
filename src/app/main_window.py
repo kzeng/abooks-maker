@@ -154,9 +154,9 @@ class MainWindow(QMainWindow):
         file_section = QVBoxLayout()
         file_section.setSpacing(6)
         
-        file_label = QLabel(translator.get('select_files'))
+        self.file_label = QLabel(translator.get('select_files'))
         file_label_layout = QHBoxLayout()
-        file_label_layout.addWidget(file_label)
+        file_label_layout.addWidget(self.file_label)
         file_label_layout.addStretch()
         file_section.addLayout(file_label_layout)
         
@@ -199,9 +199,16 @@ class MainWindow(QMainWindow):
         pitch_layout.addWidget(self.pitch_label_value)
         self.pitch_slider.valueChanged.connect(self.update_pitch_label)
         
-        left_layout.addRow(translator.get('voice_label') + ":", self.voice_combo)
-        left_layout.addRow(translator.get('rate_label') + ":", rate_layout)
-        left_layout.addRow(translator.get('pitch_label') + ":", pitch_layout)
+        self.voice_label = QLabel(translator.get('voice_label') + ":")
+        left_layout.addRow(self.voice_label, self.voice_combo)
+        
+        self.rate_form_label = QLabel(translator.get('rate_label') + ":")
+        rate_layout.insertWidget(0, self.rate_form_label)
+        left_layout.addRow(self.rate_form_label, rate_layout)
+        
+        self.pitch_form_label = QLabel(translator.get('pitch_label') + ":")
+        pitch_layout.insertWidget(0, self.pitch_form_label)
+        left_layout.addRow(self.pitch_form_label, pitch_layout)
         
         output_layout = QHBoxLayout()
         self.output_line = QLineEdit()
@@ -217,7 +224,8 @@ class MainWindow(QMainWindow):
         output_layout.addWidget(self.output_line, 1)
         output_layout.addWidget(self.output_btn)
         
-        left_layout.addRow(translator.get('output_label') + ":", output_layout)
+        self.output_form_label = QLabel(translator.get('output_label') + ":")
+        left_layout.addRow(self.output_form_label, output_layout)
         
         self.merge_checkbox = QCheckBox(translator.get('merge_checkbox'))
         self.merge_checkbox.setChecked(True)
@@ -346,8 +354,17 @@ class MainWindow(QMainWindow):
         delay_row.addWidget(self.delay_slider)
         delay_row.addWidget(self.delay_label_value)
         
-        concurrency_layout.addRow(translator.get('concurrency_label') + ":", concurrency_row)
-        concurrency_layout.addRow(translator.get('delay_label') + ":", delay_row)
+        self.concurrency_label_form = QLabel(translator.get('concurrency_label') + ":")
+        concurrency_form_layout = QHBoxLayout()
+        concurrency_form_layout.addWidget(self.concurrency_slider)
+        concurrency_form_layout.addWidget(self.concurrency_label_value)
+        concurrency_layout.addRow(self.concurrency_label_form, concurrency_form_layout)
+        
+        self.delay_label_form = QLabel(translator.get('delay_label') + ":")
+        delay_layout = QHBoxLayout()
+        delay_layout.addWidget(self.delay_slider)
+        delay_layout.addWidget(self.delay_label_value)
+        concurrency_layout.addRow(self.delay_label_form, delay_layout)
         
         self.concurrency_group.setLayout(concurrency_layout)
         grid_layout.addWidget(self.concurrency_group, 1, 0)
@@ -356,15 +373,15 @@ class MainWindow(QMainWindow):
         about_main_layout = QHBoxLayout()
         
         about_left_layout = QVBoxLayout()
-        about_text = QTextEdit()
-        about_text.setReadOnly(True)
-        about_text.setPlainText(
+        self.about_text = QTextEdit()
+        self.about_text.setReadOnly(True)
+        self.about_text.setPlainText(
             f"{translator.get('about_description')}\n\n"
             f"{translator.get('about_author')}\n"
             f"{translator.get('about_version')}: v{__version__}"
         )
-        about_text.setMaximumHeight(100)
-        about_left_layout.addWidget(about_text)
+        self.about_text.setMaximumHeight(100)
+        about_left_layout.addWidget(self.about_text)
         
         about_right_layout = QVBoxLayout()
         base_path = self.get_base_path()
@@ -547,6 +564,18 @@ class MainWindow(QMainWindow):
         self.preview_btn.setText("🔊 " + translator.get('preview_btn'))
         self.start_btn.setText("▶️ " + translator.get('start_btn'))
         
+        if hasattr(self, 'voice_label'):
+            self.voice_label.setText(translator.get('voice_label') + ":")
+        if hasattr(self, 'rate_form_label'):
+            self.rate_form_label.setText(translator.get('rate_label') + ":")
+        if hasattr(self, 'pitch_form_label'):
+            self.pitch_form_label.setText(translator.get('pitch_label') + ":")
+        if hasattr(self, 'output_form_label'):
+            self.output_form_label.setText(translator.get('output_label') + ":")
+        
+        if hasattr(self, 'file_label'):
+            self.file_label.setText(translator.get('select_files'))
+        
         if hasattr(self, 'theme_group'):
             self.theme_group.setTitle(translator.get('settings_theme'))
             self.dark_radio.setText(translator.get('theme_dark'))
@@ -559,10 +588,20 @@ class MainWindow(QMainWindow):
         
         if hasattr(self, 'about_group'):
             self.about_group.setTitle(translator.get('settings_about'))
+            self.about_text.setPlainText(
+                f"{translator.get('about_description')}\n\n"
+                f"{translator.get('about_author')}\n"
+                f"{translator.get('about_version')}: v{__version__}"
+            )
         
         if hasattr(self, 'concurrency_group'):
             self.concurrency_group.setTitle(translator.get('settings_concurrency'))
-            self.concurrency_spin.setSuffix("")
+            if hasattr(self, 'concurrency_label_form'):
+                self.concurrency_label_form.setText(translator.get('concurrency_label') + ":")
+            self.concurrency_label_value.setText(str(self.concurrency_slider.value()))
+            if hasattr(self, 'delay_label_form'):
+                self.delay_label_form.setText(translator.get('delay_label') + ":")
+            self.delay_label_value.setText(f"{self.delay_slider.value() / 10.0:.1f}s")
     
     def save_concurrency_settings(self):
         concurrency = self.concurrency_slider.value()

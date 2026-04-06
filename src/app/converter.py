@@ -40,14 +40,14 @@ def get_ffmpeg_path():
     import os
     
     if getattr(sys, 'frozen', False):
-        # 打包模式
+        # Packaged mode
         possible_paths = []
         
-        # 1. _MEIPASS 目录 (PyInstaller onefile 模式)
+        # 1. _MEIPASS directory (PyInstaller onefile mode)
         if hasattr(sys, '_MEIPASS'):
             possible_paths.append(sys._MEIPASS)
         
-        # 2. 可执行文件所在目录
+        # 2. Executable directory
         possible_paths.append(os.path.dirname(os.path.abspath(sys.executable)))
         
         for base_path in possible_paths:
@@ -55,7 +55,7 @@ def get_ffmpeg_path():
             if os.path.isfile(ffmpeg_path):
                 return ffmpeg_path
         
-        # 回退到系统 ffmpeg
+        # Fallback to system ffmpeg
         import shutil
         return shutil.which('ffmpeg') or 'ffmpeg'
     
@@ -241,7 +241,7 @@ class ConvertThread(QThread):
         
         if self._total_count == 0:
             self.progress.emit(100)
-            self.finished.emit("No content to convert")
+            self.finished.emit(t('no_content', 'No content to convert'))
             return
         
         async def convert_chunk_with_limit(chunk_data):
@@ -310,7 +310,7 @@ class ConvertThread(QThread):
                     self.log.emit(f"Error: {result}")
         
         if self._stop:
-            self.finished.emit("Stopped")
+            self.finished.emit(t('conversion_stopped', 'Conversion stopped'))
             return
         
         try:
@@ -320,7 +320,7 @@ class ConvertThread(QThread):
             self.error.emit(str(e))
         
         if self._stop:
-            self.finished.emit("Stopped")
+            self.finished.emit(t('conversion_stopped', 'Conversion stopped'))
             return
 
         if self.merge and chapter_list:
@@ -329,7 +329,7 @@ class ConvertThread(QThread):
             self.merge_audio_files(chapter_list)
 
         self.progress.emit(100)
-        self.finished.emit("Conversion complete!")
+        self.finished.emit(t('conversion_complete', 'Conversion complete!'))
 
     def merge_audio_files(self, book_dirs):
         for book_dir in book_dirs:
