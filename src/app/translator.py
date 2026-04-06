@@ -55,6 +55,9 @@ class Translator:
                 "status_converting": "转换 {filename} - 第 {chapter}/{total} 章",
                 "status_merging": "合并MP3文件...",
                 "preview_text": "欢迎使用老曾的电子书工具集。",
+                "settings_concurrency": "并发设置",
+                "concurrency_label": "并发数",
+                "delay_label": "请求间隔(秒)",
             },
             "en": {
                 "window_title": "Audio Books Maker",
@@ -109,6 +112,9 @@ class Translator:
                 "status_converting": "Converting {filename} - Chapter {chapter}/{total}",
                 "status_merging": "Merging MP3 files...",
                 "preview_text": "Welcome to the ebook toolset.",
+                "settings_concurrency": "Concurrency Settings",
+                "concurrency_label": "Workers",
+                "delay_label": "Delay (sec)",
             }
         }
 

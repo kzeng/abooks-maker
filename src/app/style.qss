@@ -228,7 +228,7 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-    background-color: #0078d4;
+    background-color: #555555;
     color: #ffffff;
 }
 
@@ -293,4 +293,40 @@ QPushButton#log_toggle_btn {
 
 QPushButton#log_toggle_btn:hover {
     color: #3498db;
+}
+
+/* Green button */
+QPushButton#green_btn {
+    background-color: #27ae60;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: bold;
+    color: white;
+}
+
+QPushButton#green_btn:hover {
+    background-color: #2ecc71;
+}
+
+QPushButton#green_btn:pressed {
+    background-color: #219a52;
+}
+
+/* Red button */
+QPushButton#red_btn {
+    background-color: #e74c3c;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: bold;
+    color: white;
+}
+
+QPushButton#red_btn:hover {
+    background-color: #ec7063;
+}
+
+QPushButton#red_btn:pressed {
+    background-color: #c0392b;
 }

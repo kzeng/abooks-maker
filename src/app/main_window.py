@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLineEdit, QPushButton, 
     QLabel, QComboBox, QProgressBar, QFileDialog, QMessageBox,
     QTabWidget, QGroupBox, QRadioButton, QFormLayout, QTextEdit, QCheckBox, QListWidget,
-    QSlider, QListWidgetItem
+    QSlider, QListWidgetItem, QSpinBox, QDoubleSpinBox
 )
 from PySide6.QtCore import Qt, QSettings, QTimer, Signal, QPoint, QUrl
 from PySide6.QtGui import QFont, QPixmap, QIcon
@@ -24,7 +24,7 @@ class TitleBar(QWidget):
         layout.setContentsMargins(10, 0, 10, 0)
         layout.setSpacing(8)
 
-        self.title_label = QLabel(translator.get('window_title'))
+        self.title_label = QLabel(f"{translator.get('window_title')} v{__version__}")
         self.title_label.setObjectName("window_title_label")
         self.title_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         layout.addWidget(self.title_label)
@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
-        self.setWindowTitle(translator.get('window_title'))
+        self.setWindowTitle(f"{translator.get('window_title')} v{__version__}")
         self.setMinimumSize(800, 650)
         
         self.settings = QSettings("Audio-Books-Maker", "App")
@@ -164,14 +164,6 @@ class MainWindow(QMainWindow):
         self.file_list.setMinimumHeight(80)
         self.file_list.setMaximumHeight(120)
         file_section.addWidget(self.file_list)
-        
-        select_btn_layout = QHBoxLayout()
-        self.select_files_btn = QPushButton("📄 " + translator.get('select_files_btn'))
-        self.select_files_btn.setMinimumHeight(35)
-        self.select_files_btn.clicked.connect(self.select_files)
-        select_btn_layout.addWidget(self.select_files_btn)
-        select_btn_layout.addStretch()
-        file_section.addLayout(select_btn_layout)
         
         layout.addLayout(file_section)
         
@@ -234,14 +226,21 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout()
         right_layout.setSpacing(10)
         
+        self.select_files_btn = QPushButton("📄 " + translator.get('select_files_btn'))
+        self.select_files_btn.setObjectName("green_btn")
+        self.select_files_btn.setMinimumHeight(35)
+        self.select_files_btn.clicked.connect(self.select_files)
+        
         self.preview_btn = QPushButton("🔊 " + translator.get('preview_btn'))
         self.preview_btn.setMinimumHeight(35)
         self.preview_btn.clicked.connect(self.preview_voice)
         
         self.start_btn = QPushButton("▶️ " + translator.get('start_btn'))
+        self.start_btn.setObjectName("red_btn")
         self.start_btn.setMinimumHeight(40)
         self.start_btn.clicked.connect(self.start_conversion)
         
+        right_layout.addWidget(self.select_files_btn)
         right_layout.addWidget(self.preview_btn)
         right_layout.addStretch()
         right_layout.addWidget(self.start_btn)
@@ -320,6 +319,39 @@ class MainWindow(QMainWindow):
         self.language_group.setLayout(language_layout)
         grid_layout.addWidget(self.language_group, 0, 1)
         
+        self.concurrency_group = QGroupBox(translator.get('settings_concurrency'))
+        concurrency_layout = QFormLayout()
+        
+        self.concurrency_slider = QSlider(Qt.Horizontal)
+        self.concurrency_slider.setMinimum(1)
+        self.concurrency_slider.setMaximum(10)
+        self.concurrency_slider.setValue(int(self.settings.value("concurrency", 1)))
+        self.concurrency_slider.valueChanged.connect(self.save_concurrency_settings)
+        
+        self.concurrency_label_value = QLabel(str(self.concurrency_slider.value()))
+        
+        concurrency_row = QHBoxLayout()
+        concurrency_row.addWidget(self.concurrency_slider)
+        concurrency_row.addWidget(self.concurrency_label_value)
+        
+        self.delay_slider = QSlider(Qt.Horizontal)
+        self.delay_slider.setMinimum(0)
+        self.delay_slider.setMaximum(50)  # 0.0 - 5.0
+        self.delay_slider.setValue(int(float(self.settings.value("delay", 1.0)) * 10))
+        self.delay_slider.valueChanged.connect(self.save_concurrency_settings)
+        
+        self.delay_label_value = QLabel(f"{self.delay_slider.value() / 10:.1f}s")
+        
+        delay_row = QHBoxLayout()
+        delay_row.addWidget(self.delay_slider)
+        delay_row.addWidget(self.delay_label_value)
+        
+        concurrency_layout.addRow(translator.get('concurrency_label') + ":", concurrency_row)
+        concurrency_layout.addRow(translator.get('delay_label') + ":", delay_row)
+        
+        self.concurrency_group.setLayout(concurrency_layout)
+        grid_layout.addWidget(self.concurrency_group, 1, 0)
+        
         self.about_group = QGroupBox(translator.get('settings_about'))
         about_main_layout = QHBoxLayout()
         
@@ -347,9 +379,9 @@ class MainWindow(QMainWindow):
         about_main_layout.addLayout(about_right_layout, 1)
         
         self.about_group.setLayout(about_main_layout)
-        grid_layout.addWidget(self.about_group, 1, 0, 1, 2)
+        grid_layout.addWidget(self.about_group, 2, 0, 1, 2)
         
-        grid_layout.setRowStretch(2, 1)
+        grid_layout.setRowStretch(3, 1)
         
         return tab
     
@@ -421,13 +453,18 @@ class MainWindow(QMainWindow):
         pitch = f"+{self.pitch_slider.value()}Hz" if self.pitch_slider.value() >= 0 else f"{self.pitch_slider.value()}Hz"
         merge = self.merge_checkbox.isChecked()
         
+        concurrency = int(self.settings.value("concurrency", 1))
+        delay = float(self.settings.value("delay", 1.0))
+        
         self.convert_thread = ConvertThread(
             self.selected_files,
             self.output_dir,
             voice,
             rate,
             pitch,
-            merge
+            merge,
+            concurrency,
+            delay
         )
         
         self.convert_thread.progress.connect(self.progress_bar.setValue)
@@ -498,7 +535,7 @@ class MainWindow(QMainWindow):
                 self.title_bar.update_text()
     
     def update_ui_text(self):
-        self.setWindowTitle(translator.get('window_title'))
+        self.setWindowTitle(f"{translator.get('window_title')} v{__version__}")
         
         for widget in self.findChildren(QLabel):
             if widget.objectName() == "title_label":
@@ -522,6 +559,18 @@ class MainWindow(QMainWindow):
         
         if hasattr(self, 'about_group'):
             self.about_group.setTitle(translator.get('settings_about'))
+        
+        if hasattr(self, 'concurrency_group'):
+            self.concurrency_group.setTitle(translator.get('settings_concurrency'))
+            self.concurrency_spin.setSuffix("")
+    
+    def save_concurrency_settings(self):
+        concurrency = self.concurrency_slider.value()
+        delay = self.delay_slider.value() / 10.0
+        self.settings.setValue("concurrency", concurrency)
+        self.settings.setValue("delay", delay)
+        self.concurrency_label_value.setText(str(concurrency))
+        self.delay_label_value.setText(f"{delay:.1f}s")
     
     def get_base_path(self):
         import sys

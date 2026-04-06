@@ -159,7 +159,7 @@ class ConvertThread(QThread):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, files, output_dir, voice, rate, pitch, merge):
+    def __init__(self, files, output_dir, voice, rate, pitch, merge, concurrency=1, delay=1.0):
         super().__init__()
         self.files = files
         self.output_dir = output_dir
@@ -167,13 +167,16 @@ class ConvertThread(QThread):
         self.rate = rate
         self.pitch = pitch
         self.merge = merge
+        self.concurrency = concurrency
+        self.delay = delay
         self._stop = False
+        self._completed_count = 0
+        self._total_count = 0
 
     def stop(self):
         self._stop = True
 
     def run(self):
-        total_files = len(self.files)
         chapter_list = []
         
         all_chunks = []
@@ -193,54 +196,89 @@ class ConvertThread(QThread):
                 chunks = [chapter_text[j:j+2000] for j in range(0, len(chapter_text), 2000)]
                 all_chunks.extend(chunks)
         
-        total_chunks = len(all_chunks)
-        completed_chunks = 0
+        self._total_count = len(all_chunks)
+        self._completed_count = 0
         
-        for file_path in self.files:
+        if self._total_count == 0:
+            self.progress.emit(100)
+            self.finished.emit("No content to convert")
+            return
+        
+        async def convert_chunk_with_limit(chunk_data):
             if self._stop:
-                break
-            filename = os.path.splitext(os.path.basename(file_path))[0]
-            book_output_dir = os.path.join(self.output_dir, filename)
-            os.makedirs(book_output_dir, exist_ok=True)
-
-            chapters = extract_text_from_file(file_path)
-            if not chapters:
-                continue
-
-            for i, chapter_text in enumerate(chapters):
+                return None
+            
+            file_path, tag, chunk = chunk_data
+            output_file = os.path.join(self.output_dir, os.path.basename(file_path), f"chapter_{tag}.mp3")
+            
+            await asyncio.sleep(self.delay)
+            
+            if os.path.exists(output_file):
+                return "skip"
+            
+            try:
+                await convert_text_to_audio(chunk, output_file, self.voice, self.rate, self.pitch)
+                return "success"
+            except Exception as e:
+                return f"error: {e}"
+        
+        async def process_all_chunks():
+            semaphore = asyncio.Semaphore(self.concurrency)
+            
+            async def limited_convert(chunk_data):
+                async with semaphore:
+                    result = await convert_chunk_with_limit(chunk_data)
+                    self._completed_count += 1
+                    progress = int((self._completed_count / max(1, self._total_count)) * 100)
+                    self.progress.emit(progress)
+                    return result
+            
+            chunk_data_list = []
+            for file_path in self.files:
                 if self._stop:
                     break
-                chapter_num = i + 1
-                self.status.emit(t('status_converting', 'Converting {filename} - Chapter {chapter}/{total}').format(filename=filename, chapter=chapter_num, total=len(chapters)))
-                self.log.emit(f"Converting chapter {chapter_num}/{len(chapters)} of {filename}")
-
-                chunks = [chapter_text[j:j+2000] for j in range(0, len(chapter_text), 2000)]
-
-                for chunk_num, chunk in enumerate(chunks):
+                filename = os.path.splitext(os.path.basename(file_path))[0]
+                book_output_dir = os.path.join(self.output_dir, filename)
+                os.makedirs(book_output_dir, exist_ok=True)
+                chapter_list.append(book_output_dir)
+                
+                chapters = extract_text_from_file(file_path)
+                if not chapters:
+                    continue
+                
+                for i, chapter_text in enumerate(chapters):
                     if self._stop:
                         break
-                    tag = f"{chapter_num:03d}_{chunk_num:02d}"
-                    output_file = os.path.join(book_output_dir, f"chapter_{tag}.mp3")
-
-                    if os.path.exists(output_file):
-                        self.log.emit(f"Skip existing: {output_file}")
-                        completed_chunks += 1
-                        progress = int((completed_chunks / max(1, total_chunks)) * 100)
-                        self.progress.emit(progress)
-                        continue
-
-                    try:
-                        asyncio.run(convert_text_to_audio(chunk, output_file, self.voice, self.rate, self.pitch))
-                        self.log.emit(f"Saved: {output_file}")
-                    except Exception as e:
-                        self.log.emit(f"Error: {e}, will continue...")
-
-                    completed_chunks += 1
-                    progress = int((completed_chunks / max(1, total_chunks)) * 100)
-                    self.progress.emit(progress)
-
-                chapter_list.append(book_output_dir)
-
+                    chapter_num = i + 1
+                    self.status.emit(t('status_converting', 'Converting {filename} - Chapter {chapter}/{total}').format(filename=filename, chapter=chapter_num, total=len(chapters)))
+                    self.log.emit(f"Converting chapter {chapter_num}/{len(chapters)} of {filename}")
+                    
+                    chunks = [chapter_text[j:j+2000] for j in range(0, len(chapter_text), 2000)]
+                    for chunk_num, chunk in enumerate(chunks):
+                        tag = f"{chapter_num:03d}_{chunk_num:02d}"
+                        chunk_data_list.append((book_output_dir, tag, chunk))
+            
+            tasks = [limited_convert(c) for c in chunk_data_list]
+            results = await asyncio.gather(*tasks)
+            
+            for i, result in enumerate(results):
+                if result == "success":
+                    self.log.emit(f"Saved: {chunk_data_list[i]}")
+                elif result == "skip":
+                    self.log.emit(f"Skip existing: {chunk_data_list[i]}")
+                elif result and result.startswith("error"):
+                    self.log.emit(f"Error: {result}")
+        
+        if self._stop:
+            self.finished.emit("Stopped")
+            return
+        
+        try:
+            asyncio.run(process_all_chunks())
+        except Exception as e:
+            self.log.emit(f"Conversion error: {e}")
+            self.error.emit(str(e))
+        
         if self._stop:
             self.finished.emit("Stopped")
             return
