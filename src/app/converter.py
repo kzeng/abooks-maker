@@ -62,6 +62,29 @@ def get_ffmpeg_path():
     return 'ffmpeg'
 
 
+def get_ffplay_path():
+    import sys
+    import os
+    
+    if getattr(sys, 'frozen', False):
+        possible_paths = []
+        
+        if hasattr(sys, '_MEIPASS'):
+            possible_paths.append(sys._MEIPASS)
+        
+        possible_paths.append(os.path.dirname(os.path.abspath(sys.executable)))
+        
+        for base_path in possible_paths:
+            ffplay_path = os.path.join(base_path, 'ffplay')
+            if os.path.isfile(ffplay_path):
+                return ffplay_path
+        
+        import shutil
+        return shutil.which('ffplay') or 'ffplay'
+    
+    return 'ffplay'
+
+
 def extract_text_from_epub(epub_path):
     book = epub.read_epub(epub_path)
     chapters = []
@@ -160,7 +183,8 @@ class PreviewThread(QThread):
                 winsound.PlaySound(temp_file, winsound.SND_FILENAME)
             else:
                 import subprocess
-                subprocess.run(['ffplay', '-nodisp', '-autoexit', temp_file], check=True)
+                ffplay = get_ffplay_path()
+                subprocess.run([ffplay, '-nodisp', '-autoexit', temp_file], check=True)
             
             os.remove(temp_file)
             self.finished.emit()
