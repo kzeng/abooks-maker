@@ -37,12 +37,28 @@ EDGE_TTS_VOICES = [
 
 def get_ffmpeg_path():
     import sys
+    import os
+    
     if getattr(sys, 'frozen', False):
-        base = os.path.dirname(sys.executable)
-        ffmpeg_in_pkg = os.path.join(base, 'ffmpeg')
-        if os.path.exists(ffmpeg_in_pkg):
-            return ffmpeg_in_pkg
-        return os.path.join(base, 'ffmpeg')
+        # 打包模式
+        possible_paths = []
+        
+        # 1. _MEIPASS 目录 (PyInstaller onefile 模式)
+        if hasattr(sys, '_MEIPASS'):
+            possible_paths.append(sys._MEIPASS)
+        
+        # 2. 可执行文件所在目录
+        possible_paths.append(os.path.dirname(os.path.abspath(sys.executable)))
+        
+        for base_path in possible_paths:
+            ffmpeg_path = os.path.join(base_path, 'ffmpeg')
+            if os.path.isfile(ffmpeg_path):
+                return ffmpeg_path
+        
+        # 回退到系统 ffmpeg
+        import shutil
+        return shutil.which('ffmpeg') or 'ffmpeg'
+    
     return 'ffmpeg'
 
 
